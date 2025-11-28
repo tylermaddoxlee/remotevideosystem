@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>BeagleY Live Stream</title>
+  <style>
+    body {
+      margin: 0;
+      background: #111;
+      color: #eee;
+      font-family: Arial, sans-serif;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+      text-align: center;
+    }
+
+    h1, h2 {
+      margin: 20px 0 10px 0;
+    }
+
+    /* Big video, keeps aspect ratio, never overflows horizontally */
+    #camera {
+      width: 100%;
+      max-width: 100%;
+      height: auto;
+      border: 2px solid #444;
+      object-fit: contain;
+      display: block;
+      margin: 0 auto 20px auto;
+    }
+
+    /* Put audio label + controls on one line, no overlap */
+    .audio-row {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .audio-row h2 {
+      margin: 0;
+    }
+
+    audio {
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>BeagleY-AI Live Stream</h1>
+
+    <h2>Camera Stream</h2>
+    <img id="camera" src="/camera" alt="BeagleY Camera">
+
+    <div class="audio-row">
+      <h2>Audio (Webcam Mic)</h2>
+      <audio controls autoplay>
+        <source src="/audio" type="audio/mpeg">
+        Your browser does not support the audio element.
+      </audio>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+  </script>
+</body>
+</html>
