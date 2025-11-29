@@ -20,6 +20,12 @@
 using namespace cv;
 using namespace std;
 
+static bool running = true;
+// handle CTRL+C or SIGTERM
+void handleSignal(int) { 
+    running = false; 
+}
+
 int main(int argc, char** argv)
 {
     cout << "Opening camera..." << endl;
@@ -74,7 +80,7 @@ int main(int argc, char** argv)
     cvtColor(frame, firstFrame, COLOR_BGR2GRAY);
     GaussianBlur(firstFrame, firstFrame, Size(21, 21), 0);
 
-    const int MIN_MOTION_AREA = 800;  // tweak for sensitivity
+    const int MIN_MOTION_AREA = 2500;  // tweak for sensitivity
 
     cout << "Starting motion detection. Press ESC or q to quit.\n";
 
