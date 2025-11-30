@@ -32,7 +32,10 @@ io.on('connection', (socket) => {
 });
 
 // ---------------- CAMERA STREAM ----------------
+
 app.get('/camera', (req, res) => {
+  console.log("Browser requested /camera");
+
   res.writeHead(200, {
     'Content-Type': 'multipart/x-mixed-replace; boundary=frame'
   });
@@ -43,6 +46,7 @@ app.get('/camera', (req, res) => {
   );
 
   client.on('data', (chunk) => {
+    console.log("Got", chunk.length, "bytes from camera");
     res.write(chunk);
   });
 
@@ -61,6 +65,7 @@ app.get('/camera', (req, res) => {
     res.end();
   });
 });
+
 
 // ---------------- AUDIO STREAM ----------------
 app.get('/audio', (req, res) => {
