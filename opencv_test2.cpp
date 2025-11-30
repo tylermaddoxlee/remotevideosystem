@@ -22,15 +22,15 @@ using namespace std;
 
 int main(int argc, char** argv)
 {
-    cout << "Opening camera..." << endl;
+cout << "Opening camera..." << endl;
 
-    // /dev/video0, V4L2 backend (same call you’ll use on BeagleY)
-    VideoCapture cam(0, cv::CAP_V4L2);
-    if (!cam.isOpened()) {
-        cerr << "FAILED TO OPEN camera" << endl;
-        return -1;
-    }
-    cout << "Camera opened." << endl;
+// Try /dev/video1 via index 1
+VideoCapture cam(1, cv::CAP_V4L2);
+if (!cam.isOpened()) {
+    cerr << "FAILED TO OPEN camera" << endl;
+    return -1;
+}
+cout << "Camera opened." << endl;
 
     // Force a format that is stable in VMware: YUYV, 640x480, 15 fps
     cam.set(cv::CAP_PROP_FOURCC, VideoWriter::fourcc('Y','U','Y','V'));
@@ -56,13 +56,20 @@ int main(int argc, char** argv)
     vector<vector<Point>> contours;
 
     // --- Warm-up: grab a few frames so auto-exposure settles ---
-    for (int i = 0; i < 10; ++i) {
+    bool gotWarmup = false;
+    for (int i = 0; i < 40; ++i) {  // try for ~2 seconds
         cam >> frame;
-        if (frame.empty()) {
-            cerr << "Failed to grab warm-up frame\n";
-            return -1;
+        if (!frame.empty()) {
+            gotWarmup = true;
+            break;
         }
+        cerr << "Warm-up: empty frame, retrying...\n";
         this_thread::sleep_for(chrono::milliseconds(50));
+    }
+
+    if (!gotWarmup) {
+        cerr << "Camera opened but no frames during warm-up (VM / USB issue)\n";
+        return -1;
     }
 
     // --- Capture initial background frame ---
