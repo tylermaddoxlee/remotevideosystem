@@ -11,9 +11,13 @@ const io = new Server(server);
 
 const HTTP_PORT = 3000;
 
-// UDP settings
+// UDP settings (light sample logging)
 const UDP_PORT = 12345;
 const UDP_HOST = '0.0.0.0';
+
+// Motion UDP settings (from OpenCV motion server)
+const MOTION_PORT = 12346;     // must match MOTION_SERVER_PORT in C++
+const MOTION_HOST = '0.0.0.0';
 
 // BeagleY camera
 const BEAGLEY_IP = "192.168.7.2";
@@ -112,6 +116,23 @@ udpSocket.on('message', (msg, rinfo) => {
 });
 
 udpSocket.bind(UDP_PORT, UDP_HOST);
+
+// ---------------- MOTION UDP LISTENER ----------------
+const motionSocket = dgram.createSocket('udp4');
+
+motionSocket.on('listening', () => {
+  const address = motionSocket.address();
+  console.log(`MOTION UDP listening on ${address.address}:${address.port}`);
+});
+
+motionSocket.on('message', (msg, rinfo) => {
+  const text = msg.toString().trim();
+  console.log(`MOTION from ${rinfo.address}:${rinfo.port} --> ${text}`);
+  // Broadcast motion event to all connected browsers
+  io.emit('motion', { status: text, from: rinfo.address });
+});
+
+motionSocket.bind(MOTION_PORT, MOTION_HOST);
 
 server.listen(HTTP_PORT, '0.0.0.0', () => {
   console.log(`Web server running on port ${HTTP_PORT}`);

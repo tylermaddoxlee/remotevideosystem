@@ -50,6 +50,29 @@
     audio {
       margin: 0;
     }
+
+    /* Motion status box */
+    .motion-box {
+      margin-top: 20px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 2px solid #444;
+      display: inline-block;
+      font-size: 1.1rem;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .motion-box.idle {
+      background: #222;
+      color: #aaa;
+      border-color: #444;
+    }
+
+    .motion-box.active {
+      background: #4a0000;
+      color: #ff7777;
+      border-color: #ff4444;
+    }
   </style>
 </head>
 <body>
@@ -58,6 +81,11 @@
 
     <h2>Camera Stream</h2>
     <img id="camera" src="/camera" alt="BeagleY Camera">
+
+    <!-- Motion status panel (separate from the video) -->
+    <div id="motion-status" class="motion-box idle">
+      Motion: idle
+    </div>
 
     <div class="audio-row">
       <h2>Audio (Webcam Mic)</h2>
@@ -71,6 +99,27 @@
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
+
+    const motionBox = document.getElementById('motion-status');
+    let motionTimeout = null;
+
+    // Listen for motion events from server.js
+    socket.on('motion', (data) => {
+      // data: { status: 'MOTION', from: '192.168.7.2' } for example
+      motionBox.textContent = 'Motion: detected';
+      motionBox.classList.remove('idle');
+      motionBox.classList.add('active');
+
+      // After 1 second with no new motion message, revert to idle
+      if (motionTimeout) {
+        clearTimeout(motionTimeout);
+      }
+      motionTimeout = setTimeout(() => {
+        motionBox.textContent = 'Motion: idle';
+        motionBox.classList.remove('active');
+        motionBox.classList.add('idle');
+      }, 1000);
+    });
   </script>
 </body>
 </html>
