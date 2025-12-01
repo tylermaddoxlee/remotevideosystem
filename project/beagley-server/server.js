@@ -1,3 +1,4 @@
+// server.js
 const express = require('express');
 const http = require('http');
 const path = require('path');
@@ -12,12 +13,14 @@ const io = new Server(server);
 
 const HTTP_PORT = 3000;
 
-// UDP settings (existing sampler)
+// -------- UDP SETTINGS --------
+// Shared UDP port for sampler *and* joystick commands
 const UDP_PORT = 12345;
 const UDP_HOST = '0.0.0.0';
+const TARGET_IP = '192.168.7.2';     // BeagleY board IP for joystick commands
 
-// MOTION events from Beagle (C++ motion server)
-const MOTION_PORT = 12346;   // must match MOTION_SERVER_PORT in C++
+// Motion events from Beagle (C++ motion server)
+const MOTION_PORT = 12346;
 const MOTION_HOST = '0.0.0.0';
 
 // BeagleY camera + audio
@@ -25,15 +28,16 @@ const BEAGLEY_IP = "192.168.7.2";
 const CAMERA_PORT = 8554;
 const AUDIO_PORT  = 8555;
 
-// ---- IMPORTANT: your real clips dir ----
-const CLIPS_DIR = "/home/ariful/ensc351/public/project/beagley-server/clips";
-console.log("Using CLIPS_DIR =", CLIPS_DIR);
+// Clips directory (where OpenCV saves clips)
+const CLIPS_DIR = path.join(__dirname, 'clips');
+// Or if you prefer absolute path, use:
+// const CLIPS_DIR = "/home/ariful/ensc351/public/project/beagley-server/clips";
 
-// Ensure clips dir exists
 if (!fs.existsSync(CLIPS_DIR)) {
   fs.mkdirSync(CLIPS_DIR, { recursive: true });
   console.log(`Created clips directory at ${CLIPS_DIR}`);
 }
+console.log("Using CLIPS_DIR =", CLIPS_DIR);
 
 // ------------ STATIC FILES ------------
 app.use(express.static(path.join(__dirname, 'public')));
@@ -42,6 +46,17 @@ app.use('/clips', express.static(CLIPS_DIR));
 // ------------ SOCKET.IO ------------
 io.on('connection', (socket) => {
   console.log('Browser connected:', socket.id);
+
+  // Joystick buttons -> UDP to Beagle
+  socket.on('servo', (cmd) => {
+    // cmd: "LEFT", "RIGHT", "STOP"
+    const message = Buffer.from(cmd);
+    udpSocket.send(message, 0, message.length, UDP_PORT, TARGET_IP, (err) => {
+      if (err) console.error('UDP send error (servo):', err);
+      else     console.log(`Sent UDP servo command: ${cmd}`);
+    });
+  });
+
   socket.on('disconnect', () => {
     console.log('Browser disconnected:', socket.id);
   });
@@ -114,6 +129,7 @@ udpSocket.on('listening', () => {
   console.log(`UDP listening on ${address.address}:${address.port}`);
 });
 
+// If you still use this for sampler logs:
 udpSocket.on('message', (msg, rinfo) => {
   const text = msg.toString().trim();
   console.log(`UDP ${rinfo.address}:${rinfo.port} --> ${text}`);
@@ -133,12 +149,14 @@ motionSocket.on('listening', () => {
 motionSocket.on('message', (msg, rinfo) => {
   const text = msg.toString().trim();
   console.log(`MOTION from ${rinfo.address}:${rinfo.port} --> ${text}`);
+
+  // Broadcast to browser
   io.emit('motion', { text, ts: Date.now() });
 });
 
 motionSocket.bind(MOTION_PORT, MOTION_HOST);
 
-// ------------ CLIPS API (for main page) ------------
+// ------------ CLIPS API ------------
 app.get('/api/clips', (req, res) => {
   console.log("GET /api/clips");
   fs.readdir(CLIPS_DIR, (err, files) => {
