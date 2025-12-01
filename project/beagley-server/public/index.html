@@ -88,6 +88,7 @@
       color: #eee;
       cursor: pointer;
       font-size: 0.9rem;
+      user-select: none;
     }
     .joy-btn:hover {
       background: #333;
@@ -185,7 +186,6 @@
       <h2>Joystick Control</h2>
       <div class="joystick-buttons">
         <button id="btn-left" class="joy-btn">Left</button>
-        <button id="btn-stop" class="joy-btn">Stop</button>
         <button id="btn-right" class="joy-btn">Right</button>
       </div>
     </div>
@@ -230,21 +230,57 @@
 
     socket.on('motion', (data) => {
       setMotionActive();
+
       if (motionTimeout) clearTimeout(motionTimeout);
       motionTimeout = setTimeout(setMotionIdle, 2000);
-      loadClips();
     });
 
-    // ---------- JOYSTICK BUTTONS ----------
-    document.getElementById('btn-left').addEventListener('click', () => {
-      socket.emit('servo', 'LEFT');
-    });
-    document.getElementById('btn-right').addEventListener('click', () => {
-      socket.emit('servo', 'RIGHT');
-    });
-    document.getElementById('btn-stop').addEventListener('click', () => {
-      socket.emit('servo', 'STOP');
-    });
+    // ---------- JOYSTICK BUTTONS (PRESS & HOLD) ----------
+    // We keep your "visual left/right is flipped" mapping:
+    //   UI Left  -> servo 'RIGHT'
+    //   UI Right -> servo 'LEFT'
+    let holdInterval = null;
+
+    function startHold(command) {
+      // send one immediately
+      socket.emit('servo', command);
+
+      // then send repeatedly while held
+      holdInterval = setInterval(() => {
+        socket.emit('servo', command);
+      }, 120); // tweak speed if you want faster/slower
+    }
+
+    function stopHold() {
+      if (holdInterval !== null) {
+        clearInterval(holdInterval);
+        holdInterval = null;
+      }
+    }
+
+    const btnLeft  = document.getElementById('btn-left');
+    const btnRight = document.getElementById('btn-right');
+
+    // Mouse events
+    btnLeft.addEventListener('mousedown', () => startHold('RIGHT'));
+    btnRight.addEventListener('mousedown', () => startHold('LEFT'));
+
+    document.addEventListener('mouseup', stopHold);
+    document.addEventListener('mouseleave', stopHold);
+
+    // Touch events (for trackpad / touchscreen)
+    btnLeft.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      startHold('RIGHT');
+    }, { passive: false });
+
+    btnRight.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      startHold('LEFT');
+    }, { passive: false });
+
+    document.addEventListener('touchend', stopHold);
+    document.addEventListener('touchcancel', stopHold);
 
     // ---------- CLIPS UI ----------
     async function loadClips() {

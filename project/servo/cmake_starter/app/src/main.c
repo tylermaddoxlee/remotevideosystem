@@ -16,8 +16,8 @@
 #define SPI_BITS 8
 #define SPI_SPEED 1000000         // 1 MHz
 
-#define JOY_CH_X 0     // MCP3208 channel for X-axis
-#define JOY_CH_Y 1     // MCP3208 channel for Y-axis
+#define JOY_CH_X 1    // MCP3208 channel for X-axis
+#define JOY_CH_Y 0     // MCP3208 channel for Y-axis
 
 #define UDP_PORT 12345
 
@@ -72,12 +72,12 @@ void udp_check() {
             current_angle -= 5;            // decrease angle
             if (current_angle < 0) current_angle = 0;  // limit to 0
             servo_set_angle(current_angle);
-            printf("UDP LEFT  → angle = %d\n", current_angle);
+            printf("UDP right  → angle = %d\n", current_angle);
         } else if (strcmp(buf, "RIGHT") == 0) {
             current_angle += 5;            // increase angle
             if (current_angle > 180) current_angle = 180; // limit to 180
             servo_set_angle(current_angle);
-            printf("UDP RIGHT → angle = %d\n", current_angle);
+            printf("UDP left → angle = %d\n", current_angle);
         } else if (strcmp(buf, "STOP") == 0) {
             // Optional: do nothing, or hold current angle
         }
@@ -139,12 +139,12 @@ int main(void) {
             if (current_angle > 0) current_angle -= 3;
             if (current_angle < 0) current_angle = 0;
             servo_set_angle(current_angle);
-            printf("Joystick LEFT  → angle = %d\n", current_angle);
+            printf("Joystick RIGHT  → angle = %d\n", current_angle);
         } else if (dir == JS_RIGHT) {
             if (current_angle < 180) current_angle += 3;
             if (current_angle > 180) current_angle = 180;
             servo_set_angle(current_angle);
-            printf("Joystick RIGHT → angle = %d\n", current_angle);
+            printf("Joystick LEFT → angle = %d\n", current_angle);
         }
 
         // Check UDP input
