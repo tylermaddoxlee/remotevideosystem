@@ -18,7 +18,7 @@
       text-align: center;
     }
 
-    h1, h2 {
+    h1, h2, h3 {
       margin: 20px 0 10px 0;
     }
 
@@ -31,24 +31,6 @@
       object-fit: contain;
       display: block;
       margin: 0 auto 20px auto;
-    }
-
-    /* Put audio label + controls on one line, no overlap */
-    .audio-row {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      margin-top: 10px;
-    }
-
-    .audio-row h2 {
-      margin: 0;
-    }
-
-    audio {
-      margin: 0;
     }
 
     /* Motion status box */
@@ -73,6 +55,99 @@
       color: #ff7777;
       border-color: #ff4444;
     }
+
+    /* Audio row */
+    .audio-row {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .audio-row h2 {
+      margin: 0;
+    }
+
+    audio {
+      margin: 0;
+    }
+
+    /* Motion clips UI */
+    .clips-container {
+      margin-top: 30px;
+      text-align: left;
+    }
+
+    .clips-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      justify-content: center;
+    }
+
+    #clips-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 10px;
+    }
+
+    .clip-button {
+      padding: 6px 10px;
+      background: #222;
+      border: 1px solid #555;
+      color: #eee;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .clip-button:hover {
+      background: #333;
+    }
+
+    #clip-player {
+      width: 100%;
+      max-width: 100%;
+      margin-top: 10px;
+      border: 2px solid #444;
+      background: #000;
+      display: none;
+    }
+
+    #refresh-clips {
+      padding: 6px 12px;
+      background: #2a2a2a;
+      border: 1px solid #555;
+      color: #eee;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    #refresh-clips:hover {
+      background: #3a3a3a;
+    }
+
+    #open-folder-view {
+      font-size: 0.85rem;
+      color: #6cf;
+      text-decoration: none;
+      padding: 6px 10px;
+      border-radius: 4px;
+      border: 1px solid #555;
+      background: #1a1a1a;
+    }
+
+    #open-folder-view:hover {
+      text-decoration: underline;
+      background: #252525;
+    }
   </style>
 </head>
 <body>
@@ -82,7 +157,7 @@
     <h2>Camera Stream</h2>
     <img id="camera" src="/camera" alt="BeagleY Camera">
 
-    <!-- Motion status panel (separate from the video) -->
+    <!-- Motion status panel -->
     <div id="motion-status" class="motion-box idle">
       Motion: idle
     </div>
@@ -94,32 +169,108 @@
         Your browser does not support the audio element.
       </audio>
     </div>
+
+    <!-- NEW: Motion clips browser -->
+    <div class="clips-container">
+      <h2>Motion Clips</h2>
+
+      <div class="clips-toolbar">
+        <button id="refresh-clips">Refresh Clips</button>
+        <a id="open-folder-view" href="/clips-browser" target="_blank">
+          Open Clips Folder View
+        </a>
+      </div>
+
+      <div id="clips-list"></div>
+      <h3 id="clip-title"></h3>
+      <video id="clip-player" controls></video>
+    </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
 
+    // ---------- MOTION STATUS ----------
     const motionBox = document.getElementById('motion-status');
     let motionTimeout = null;
 
-    // Listen for motion events from server.js
-    socket.on('motion', (data) => {
-      // data: { status: 'MOTION', from: '192.168.7.2' } for example
+    function setMotionIdle() {
+      motionBox.textContent = 'Motion: idle';
+      motionBox.classList.remove('active');
+      motionBox.classList.add('idle');
+    }
+
+    function setMotionActive() {
       motionBox.textContent = 'Motion: detected';
       motionBox.classList.remove('idle');
       motionBox.classList.add('active');
+    }
 
-      // After 1 second with no new motion message, revert to idle
-      if (motionTimeout) {
-        clearTimeout(motionTimeout);
-      }
-      motionTimeout = setTimeout(() => {
-        motionBox.textContent = 'Motion: idle';
-        motionBox.classList.remove('active');
-        motionBox.classList.add('idle');
-      }, 1000);
+    setMotionIdle();
+
+    socket.on('motion', (data) => {
+      // data: { text: 'MOTION', ts: ... }
+      setMotionActive();
+
+      // back to idle after 2s with no further motion events
+      if (motionTimeout) clearTimeout(motionTimeout);
+      motionTimeout = setTimeout(setMotionIdle, 2000);
+
+      // refresh clips (in case a new one just finished)
+      loadClips();
     });
+
+    // ---------- CLIPS UI ----------
+    async function loadClips() {
+      const listDiv = document.getElementById('clips-list');
+      listDiv.textContent = 'Loading...';
+
+      try {
+        const res = await fetch('/api/clips');
+        const clips = await res.json();
+
+        listDiv.innerHTML = '';
+        if (!clips || !clips.length) {
+          listDiv.textContent = 'No clips yet.';
+          return;
+        }
+
+        clips.forEach(name => {
+          const btn = document.createElement('button');
+          btn.className = 'clip-button';
+
+          const label = name
+            .replace(/^clip_/, '')
+            .replace(/\.avi$/i, '')
+            .replace(/\.mp4$/i, '');
+          btn.textContent = label;
+
+          btn.addEventListener('click', () => playClip(name));
+          listDiv.appendChild(btn);
+        });
+      } catch (err) {
+        console.error('Error loading clips:', err);
+        listDiv.textContent = 'Failed to load clips.';
+      }
+    }
+
+    function playClip(name) {
+      const player = document.getElementById('clip-player');
+      const title  = document.getElementById('clip-title');
+
+      player.src = '/clips/' + encodeURIComponent(name);
+      player.style.display = 'block';
+      title.textContent = 'Playing: ' + name;
+
+      player.play().catch(() => {});
+    }
+
+    document.getElementById('refresh-clips')
+      .addEventListener('click', loadClips);
+
+    // initial load when page opens
+    loadClips();
   </script>
 </body>
 </html>

@@ -3,6 +3,7 @@ const http = require('http');
 const path = require('path');
 const dgram = require('dgram');
 const net = require('net');
+const fs = require('fs');
 const { Server } = require('socket.io');
 
 const app = express();
@@ -11,23 +12,34 @@ const io = new Server(server);
 
 const HTTP_PORT = 3000;
 
-// UDP settings (light sample logging)
+// UDP settings (existing sampler)
 const UDP_PORT = 12345;
 const UDP_HOST = '0.0.0.0';
 
-// Motion UDP settings (from OpenCV motion server)
-const MOTION_PORT = 12346;     // must match MOTION_SERVER_PORT in C++
+// MOTION events from Beagle (C++ motion server)
+const MOTION_PORT = 12346;   // must match MOTION_SERVER_PORT in C++
 const MOTION_HOST = '0.0.0.0';
 
-// BeagleY camera
+// BeagleY camera + audio
 const BEAGLEY_IP = "192.168.7.2";
 const CAMERA_PORT = 8554;
+const AUDIO_PORT  = 8555;
 
-// BeagleY audio (mic)
-const AUDIO_PORT = 8555;
+// ---- IMPORTANT: your real clips dir ----
+const CLIPS_DIR = "/home/ariful/ensc351/public/project/beagley-server/clips";
+console.log("Using CLIPS_DIR =", CLIPS_DIR);
 
+// Ensure clips dir exists
+if (!fs.existsSync(CLIPS_DIR)) {
+  fs.mkdirSync(CLIPS_DIR, { recursive: true });
+  console.log(`Created clips directory at ${CLIPS_DIR}`);
+}
+
+// ------------ STATIC FILES ------------
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/clips', express.static(CLIPS_DIR));
 
+// ------------ SOCKET.IO ------------
 io.on('connection', (socket) => {
   console.log('Browser connected:', socket.id);
   socket.on('disconnect', () => {
@@ -35,7 +47,7 @@ io.on('connection', (socket) => {
   });
 });
 
-// ---------------- CAMERA STREAM ----------------
+// ------------ CAMERA STREAM ------------
 app.get('/camera', (req, res) => {
   res.writeHead(200, {
     'Content-Type': 'multipart/x-mixed-replace; boundary=frame'
@@ -46,9 +58,7 @@ app.get('/camera', (req, res) => {
     () => console.log("Connected to BeagleY camera stream")
   );
 
-  client.on('data', (chunk) => {
-    res.write(chunk);
-  });
+  client.on('data', (chunk) => res.write(chunk));
 
   req.on('close', () => {
     console.log("Browser closed /camera");
@@ -66,23 +76,19 @@ app.get('/camera', (req, res) => {
   });
 });
 
-// ---------------- AUDIO STREAM ----------------
+// ------------ AUDIO STREAM ------------
 app.get('/audio', (req, res) => {
-  // Tell browser this is an MP3 audio stream
   res.writeHead(200, {
     'Content-Type': 'audio/mpeg',
     'Connection': 'close',
     'Transfer-Encoding': 'chunked'
   });
 
-  // Connect to BeagleY audio TCP server
   const socket = net.connect(AUDIO_PORT, BEAGLEY_IP, () => {
     console.log('Connected to audio stream');
   });
 
-  socket.on('data', (chunk) => {
-    res.write(chunk);
-  });
+  socket.on('data', (chunk) => res.write(chunk));
 
   socket.on('end', () => {
     console.log('Audio stream ended');
@@ -94,14 +100,13 @@ app.get('/audio', (req, res) => {
     res.end();
   });
 
-  // If browser closes tab / stops request
   req.on('close', () => {
     console.log('Browser closed /audio');
     socket.end();
   });
 });
 
-// ---------------- UDP SAMPLE LOGGING ----------------
+// ------------ UDP SAMPLE LOGGING (12345) ------------
 const udpSocket = dgram.createSocket('udp4');
 
 udpSocket.on('listening', () => {
@@ -117,7 +122,7 @@ udpSocket.on('message', (msg, rinfo) => {
 
 udpSocket.bind(UDP_PORT, UDP_HOST);
 
-// ---------------- MOTION UDP LISTENER ----------------
+// ------------ MOTION EVENTS (12346) ------------
 const motionSocket = dgram.createSocket('udp4');
 
 motionSocket.on('listening', () => {
@@ -128,12 +133,68 @@ motionSocket.on('listening', () => {
 motionSocket.on('message', (msg, rinfo) => {
   const text = msg.toString().trim();
   console.log(`MOTION from ${rinfo.address}:${rinfo.port} --> ${text}`);
-  // Broadcast motion event to all connected browsers
-  io.emit('motion', { status: text, from: rinfo.address });
+  io.emit('motion', { text, ts: Date.now() });
 });
 
 motionSocket.bind(MOTION_PORT, MOTION_HOST);
 
+// ------------ CLIPS API (for main page) ------------
+app.get('/api/clips', (req, res) => {
+  console.log("GET /api/clips");
+  fs.readdir(CLIPS_DIR, (err, files) => {
+    if (err) {
+      console.error("Error reading clips dir:", err);
+      return res.status(500).json({ error: 'Failed to list clips' });
+    }
+
+    const clips = files
+      .filter(f => f.endsWith('.avi') || f.endsWith('.mp4'))
+      .sort()
+      .reverse();
+
+    res.json(clips);
+  });
+});
+
+// ------------ Folder-style view ------------
+app.get('/clips-browser', (req, res) => {
+  console.log("GET /clips-browser");
+  fs.readdir(CLIPS_DIR, (err, files) => {
+    if (err) {
+      console.error("Error reading clips dir (browser):", err);
+      return res
+        .status(500)
+        .send('<h1>Error reading clips directory</h1>');
+    }
+
+    const list = files
+      .filter(f => f.endsWith('.avi') || f.endsWith('.mp4'))
+      .sort()
+      .reverse()
+      .map(f => `<li><a href="/clips/${encodeURIComponent(f)}">${f}</a></li>`)
+      .join('\n');
+
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Clips Folder View</title>
+        <style>
+          body { background:#111; color:#eee; font-family:Arial,sans-serif; }
+          a { color:#6cf; }
+        </style>
+      </head>
+      <body>
+        <h1>Clips Folder View</h1>
+        <ul>${list}</ul>
+      </body>
+      </html>
+    `);
+  });
+});
+
+// ------------ START SERVER ------------
 server.listen(HTTP_PORT, '0.0.0.0', () => {
   console.log(`Web server running on port ${HTTP_PORT}`);
 });
