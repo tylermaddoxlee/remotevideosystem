@@ -2,27 +2,26 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>BeagleY Live Stream</title>
+  <title>BeagleY Live Stream + Servo</title>
   <style>
     body {
       margin: 0;
       background: #111;
       color: #eee;
       font-family: Arial, sans-serif;
+      text-align: center;
     }
 
     .container {
       max-width: 1000px;
       margin: 0 auto;
       padding: 20px;
-      text-align: center;
     }
 
     h1, h2 {
       margin: 20px 0 10px 0;
     }
 
-    /* Big video, keeps aspect ratio, never overflows horizontally */
     #camera {
       width: 100%;
       max-width: 100%;
@@ -33,7 +32,6 @@
       margin: 0 auto 20px auto;
     }
 
-    /* Put audio label + controls on one line, no overlap */
     .audio-row {
       display: flex;
       flex-direction: row;
@@ -43,12 +41,26 @@
       margin-top: 10px;
     }
 
-    .audio-row h2 {
+    audio {
       margin: 0;
     }
 
-    audio {
-      margin: 0;
+    /* Servo buttons */
+    .servo-controls {
+      margin-top: 30px;
+    }
+    .servo-controls button {
+      font-size: 1.5rem;
+      padding: 10px 30px;
+      margin: 10px;
+      cursor: pointer;
+      border-radius: 8px;
+      border: none;
+      background: #444;
+      color: #fff;
+    }
+    .servo-controls button:hover {
+      background: #666;
     }
   </style>
 </head>
@@ -66,11 +78,34 @@
         Your browser does not support the audio element.
       </audio>
     </div>
+
+    <!-- Servo Control -->
+    <div class="servo-controls">
+      <h2>Servo Control</h2>
+      <button id="leftBtn">LEFT</button>
+      <button id="rightBtn">RIGHT</button>
+    </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
+
+    // LEFT button
+    document.getElementById("leftBtn").addEventListener("mousedown", () => {
+      socket.emit("servo", "LEFT");
+    });
+    document.getElementById("leftBtn").addEventListener("mouseup", () => {
+      socket.emit("servo", "STOP");
+    });
+
+    // RIGHT button
+    document.getElementById("rightBtn").addEventListener("mousedown", () => {
+      socket.emit("servo", "RIGHT");
+    });
+    document.getElementById("rightBtn").addEventListener("mouseup", () => {
+      socket.emit("servo", "STOP");
+    });
   </script>
 </body>
 </html>
