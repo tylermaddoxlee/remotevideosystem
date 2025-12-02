@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>BeagleY Live Stream</title>
+  <style>
+    body {
+      margin: 0;
+      background: #111;
+      color: #eee;
+      font-family: Arial, sans-serif;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+      text-align: center;
+    }
+
+    h1, h2, h3 {
+      margin: 20px 0 10px 0;
+    }
+
+    /* Big video */
+    #camera {
+      width: 100%;
+      max-width: 100%;
+      height: auto;
+      border: 2px solid #444;
+      object-fit: contain;
+      display: block;
+      margin: 0 auto 20px auto;
+    }
+
+    /* Motion status box */
+    .motion-box {
+      margin-top: 20px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 2px solid #444;
+      display: inline-block;
+      font-size: 1.1rem;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+    .motion-box.idle {
+      background: #222;
+      color: #aaa;
+      border-color: #444;
+    }
+    .motion-box.active {
+      background: #4a0000;
+      color: #ff7777;
+      border-color: #ff4444;
+    }
+
+    /* Audio row */
+    .audio-row {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .audio-row h2 {
+      margin: 0;
+    }
+    audio {
+      margin: 0;
+    }
+
+    /* Joystick controls */
+    .joystick-container {
+      margin-top: 30px;
+    }
+    .joystick-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .joy-btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid #555;
+      background: #222;
+      color: #eee;
+      cursor: pointer;
+      font-size: 0.9rem;
+      user-select: none;
+    }
+    .joy-btn:hover {
+      background: #333;
+    }
+
+    /* Motion clips UI */
+    .clips-container {
+      margin-top: 30px;
+      text-align: left;
+    }
+    .clips-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      justify-content: center;
+    }
+    #clips-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 10px;
+    }
+    .clip-button {
+      padding: 6px 10px;
+      background: #222;
+      border: 1px solid #555;
+      color: #eee;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .clip-button:hover {
+      background: #333;
+    }
+    #clip-player {
+      width: 100%;
+      max-width: 100%;
+      margin-top: 10px;
+      border: 2px solid #444;
+      background: #000;
+      display: none;
+    }
+    #refresh-clips {
+      padding: 6px 12px;
+      background: #2a2a2a;
+      border: 1px solid #555;
+      color: #eee;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    #refresh-clips:hover {
+      background: #3a3a3a;
+    }
+    #open-folder-view {
+      font-size: 0.85rem;
+      color: #6cf;
+      text-decoration: none;
+      padding: 6px 10px;
+      border-radius: 4px;
+      border: 1px solid #555;
+      background: #1a1a1a;
+    }
+    #open-folder-view:hover {
+      text-decoration: underline;
+      background: #252525;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>BeagleY-AI Live Stream</h1>
+
+    <h2>Camera Stream</h2>
+    <img id="camera" src="/camera" alt="BeagleY Camera">
+
+    <!-- Motion status -->
+    <div id="motion-status" class="motion-box idle">
+      Motion: idle
+    </div>
+
+    <div class="audio-row">
+      <h2>Audio (Webcam Mic)</h2>
+      <audio controls autoplay>
+        <source src="/audio" type="audio/mpeg">
+        Your browser does not support the audio element.
+      </audio>
+    </div>
+
+    <!-- Joystick control -->
+    <div class="joystick-container">
+      <h2>Joystick Control</h2>
+      <div class="joystick-buttons">
+        <button id="btn-left" class="joy-btn">Left</button>
+        <button id="btn-right" class="joy-btn">Right</button>
+      </div>
+    </div>
+
+    <!-- Motion clips -->
+    <div class="clips-container">
+      <h2>Motion Clips</h2>
+      <div class="clips-toolbar">
+        <button id="refresh-clips">Refresh Clips</button>
+        <a id="open-folder-view" href="/clips-browser" target="_blank">
+          Open Clips Folder View
+        </a>
+      </div>
+
+      <div id="clips-list"></div>
+      <h3 id="clip-title"></h3>
+      <video id="clip-player" controls></video>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    // ---------- MOTION STATUS ----------
+    const motionBox = document.getElementById('motion-status');
+    let motionTimeout = null;
+
+    function setMotionIdle() {
+      motionBox.textContent = 'Motion: idle';
+      motionBox.classList.remove('active');
+      motionBox.classList.add('idle');
+    }
+
+    function setMotionActive() {
+      motionBox.textContent = 'Motion: detected';
+      motionBox.classList.remove('idle');
+      motionBox.classList.add('active');
+    }
+
+    setMotionIdle();
+
+    socket.on('motion', (data) => {
+      setMotionActive();
+
+      if (motionTimeout) clearTimeout(motionTimeout);
+      motionTimeout = setTimeout(setMotionIdle, 2000);
+    });
+
+    // ---------- JOYSTICK BUTTONS (PRESS & HOLD) ----------
+    // We keep your "visual left/right is flipped" mapping:
+    //   UI Left  -> servo 'RIGHT'
+    //   UI Right -> servo 'LEFT'
+    let holdInterval = null;
+
+    function startHold(command) {
+      // send one immediately
+      socket.emit('servo', command);
+
+      // then send repeatedly while held
+      holdInterval = setInterval(() => {
+        socket.emit('servo', command);
+      }, 120); // tweak speed if you want faster/slower
+    }
+
+    function stopHold() {
+      if (holdInterval !== null) {
+        clearInterval(holdInterval);
+        holdInterval = null;
+      }
+    }
+
+    const btnLeft  = document.getElementById('btn-left');
+    const btnRight = document.getElementById('btn-right');
+
+    // Mouse events
+    btnLeft.addEventListener('mousedown', () => startHold('RIGHT'));
+    btnRight.addEventListener('mousedown', () => startHold('LEFT'));
+
+    document.addEventListener('mouseup', stopHold);
+    document.addEventListener('mouseleave', stopHold);
+
+    // Touch events (for trackpad / touchscreen)
+    btnLeft.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      startHold('RIGHT');
+    }, { passive: false });
+
+    btnRight.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      startHold('LEFT');
+    }, { passive: false });
+
+    document.addEventListener('touchend', stopHold);
+    document.addEventListener('touchcancel', stopHold);
+
+    // ---------- CLIPS UI ----------
+    async function loadClips() {
+      const listDiv = document.getElementById('clips-list');
+      listDiv.textContent = 'Loading...';
+
+      try {
+        const res = await fetch('/api/clips');
+        const clips = await res.json();
+
+        listDiv.innerHTML = '';
+        if (!clips || !clips.length) {
+          listDiv.textContent = 'No clips yet.';
+          return;
+        }
+
+        clips.forEach(name => {
+          const btn = document.createElement('button');
+          btn.className = 'clip-button';
+          const label = name
+            .replace(/^clip_/, '')
+            .replace(/\.avi$/i, '')
+            .replace(/\.mp4$/i, '');
+          btn.textContent = label;
+          btn.addEventListener('click', () => playClip(name));
+          listDiv.appendChild(btn);
+        });
+      } catch (err) {
+        console.error('Error loading clips:', err);
+        listDiv.textContent = 'Failed to load clips.';
+      }
+    }
+
+    function playClip(name) {
+      const player = document.getElementById('clip-player');
+      const title  = document.getElementById('clip-title');
+
+      player.src = '/clips/' + encodeURIComponent(name);
+      player.style.display = 'block';
+      title.textContent = 'Playing: ' + name;
+
+      player.play().catch(() => {});
+    }
+
+    document.getElementById('refresh-clips')
+      .addEventListener('click', loadClips);
+
+    // initial load
+    loadClips();
+  </script>
+</body>
+</html>

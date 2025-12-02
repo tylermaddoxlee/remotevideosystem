@@ -30,7 +30,7 @@ const AUDIO_PORT  = 8555;
 
 // Clips directory (where OpenCV saves clips)
 const CLIPS_DIR = path.join(__dirname, 'clips');
-// Or if you prefer absolute path, use:
+// Or, equivalently, your absolute path:
 // const CLIPS_DIR = "/home/ariful/ensc351/public/project/beagley-server/clips";
 
 if (!fs.existsSync(CLIPS_DIR)) {
@@ -38,6 +38,44 @@ if (!fs.existsSync(CLIPS_DIR)) {
   console.log(`Created clips directory at ${CLIPS_DIR}`);
 }
 console.log("Using CLIPS_DIR =", CLIPS_DIR);
+
+// ------------ HELPER: KEEP ONLY N NEWEST CLIPS ------------
+function pruneOldClips(maxClips = 5) {
+  try {
+    // Get all video files
+    const files = fs.readdirSync(CLIPS_DIR)
+      .filter(f => f.endsWith('.avi') || f.endsWith('.mp4'));
+
+    if (files.length <= maxClips) {
+      return;
+    }
+
+    // Build array with mtime for each file
+    const withTimes = files.map(name => {
+      const full = path.join(CLIPS_DIR, name);
+      const stat = fs.statSync(full);
+      return { name, mtime: stat.mtimeMs };
+    });
+
+    // Oldest first
+    withTimes.sort((a, b) => a.mtime - b.mtime);
+
+    const extraCount = withTimes.length - maxClips;
+    const toDelete = withTimes.slice(0, extraCount);
+
+    toDelete.forEach(file => {
+      const full = path.join(CLIPS_DIR, file.name);
+      try {
+        fs.unlinkSync(full);
+        console.log(`Pruned old clip: ${file.name}`);
+      } catch (err) {
+        console.error(`Failed to delete clip ${file.name}:`, err);
+      }
+    });
+  } catch (err) {
+    console.error("Error pruning clips:", err);
+  }
+}
 
 // ------------ STATIC FILES ------------
 app.use(express.static(path.join(__dirname, 'public')));
@@ -159,6 +197,11 @@ motionSocket.bind(MOTION_PORT, MOTION_HOST);
 // ------------ CLIPS API ------------
 app.get('/api/clips', (req, res) => {
   console.log("GET /api/clips");
+
+  // Housekeeping: keep only 5 newest
+  pruneOldClips(5);
+
+  // Now read the (possibly pruned) directory
   fs.readdir(CLIPS_DIR, (err, files) => {
     if (err) {
       console.error("Error reading clips dir:", err);
@@ -168,7 +211,7 @@ app.get('/api/clips', (req, res) => {
     const clips = files
       .filter(f => f.endsWith('.avi') || f.endsWith('.mp4'))
       .sort()
-      .reverse();
+      .reverse();  // newest names last -> reverse for newest first
 
     res.json(clips);
   });
@@ -177,6 +220,10 @@ app.get('/api/clips', (req, res) => {
 // ------------ Folder-style view ------------
 app.get('/clips-browser', (req, res) => {
   console.log("GET /clips-browser");
+
+  // Also prune here, in case this is hit first
+  pruneOldClips(5);
+
   fs.readdir(CLIPS_DIR, (err, files) => {
     if (err) {
       console.error("Error reading clips dir (browser):", err);
