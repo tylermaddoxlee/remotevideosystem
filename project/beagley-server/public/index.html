@@ -210,7 +210,7 @@
   <script>
     const socket = io();
 
-    // ---------- MOTION STATUS ----------
+    // Motion Status
     const motionBox = document.getElementById('motion-status');
     let motionTimeout = null;
 
@@ -235,10 +235,8 @@
       motionTimeout = setTimeout(setMotionIdle, 2000);
     });
 
-    // ---------- JOYSTICK BUTTONS (PRESS & HOLD) ----------
-    // We keep your "visual left/right is flipped" mapping:
-    //   UI Left  -> servo 'RIGHT'
-    //   UI Right -> servo 'LEFT'
+    // Joystick Buttons
+ 
     let holdInterval = null;
 
     function startHold(command) {
@@ -282,7 +280,7 @@
     document.addEventListener('touchend', stopHold);
     document.addEventListener('touchcancel', stopHold);
 
-    // ---------- CLIPS UI ----------
+    // CLIPS
     async function loadClips() {
       const listDiv = document.getElementById('clips-list');
       listDiv.textContent = 'Loading...';

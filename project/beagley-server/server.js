@@ -13,11 +13,11 @@ const io = new Server(server);
 
 const HTTP_PORT = 3000;
 
-// -------- UDP SETTINGS --------
+// UDP
 // Shared UDP port for sampler *and* joystick commands
 const UDP_PORT = 12345;
 const UDP_HOST = '0.0.0.0';
-const TARGET_IP = '192.168.7.2';     // BeagleY board IP for joystick commands
+const TARGET_IP = '192.168.7.2'; // BeagleY board IP for joystick commands
 
 // Motion events from Beagle (C++ motion server)
 const MOTION_PORT = 12346;
@@ -30,7 +30,6 @@ const AUDIO_PORT  = 8555;
 
 // Clips directory (where OpenCV saves clips)
 const CLIPS_DIR = path.join(__dirname, 'clips');
-// Or, equivalently, your absolute path:
 // const CLIPS_DIR = "/home/ariful/ensc351/public/project/beagley-server/clips";
 
 if (!fs.existsSync(CLIPS_DIR)) {
@@ -39,7 +38,7 @@ if (!fs.existsSync(CLIPS_DIR)) {
 }
 console.log("Using CLIPS_DIR =", CLIPS_DIR);
 
-// ------------ HELPER: KEEP ONLY N NEWEST CLIPS ------------
+//NEWEST CLIPS
 function pruneOldClips(maxClips = 5) {
   try {
     // Get all video files
@@ -77,11 +76,11 @@ function pruneOldClips(maxClips = 5) {
   }
 }
 
-// ------------ STATIC FILES ------------
+// STATIC FILES
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/clips', express.static(CLIPS_DIR));
 
-// ------------ SOCKET.IO ------------
+// Socket
 io.on('connection', (socket) => {
   console.log('Browser connected:', socket.id);
 
@@ -100,7 +99,7 @@ io.on('connection', (socket) => {
   });
 });
 
-// ------------ CAMERA STREAM ------------
+// Camera Stream
 app.get('/camera', (req, res) => {
   res.writeHead(200, {
     'Content-Type': 'multipart/x-mixed-replace; boundary=frame'
@@ -129,7 +128,7 @@ app.get('/camera', (req, res) => {
   });
 });
 
-// ------------ AUDIO STREAM ------------
+// Audio Stream
 app.get('/audio', (req, res) => {
   res.writeHead(200, {
     'Content-Type': 'audio/mpeg',
@@ -159,7 +158,7 @@ app.get('/audio', (req, res) => {
   });
 });
 
-// ------------ UDP SAMPLE LOGGING (12345) ------------
+// UDP Sample
 const udpSocket = dgram.createSocket('udp4');
 
 udpSocket.on('listening', () => {
@@ -176,7 +175,7 @@ udpSocket.on('message', (msg, rinfo) => {
 
 udpSocket.bind(UDP_PORT, UDP_HOST);
 
-// ------------ MOTION EVENTS (12346) ------------
+// Motion Events
 const motionSocket = dgram.createSocket('udp4');
 
 motionSocket.on('listening', () => {
@@ -194,7 +193,7 @@ motionSocket.on('message', (msg, rinfo) => {
 
 motionSocket.bind(MOTION_PORT, MOTION_HOST);
 
-// ------------ CLIPS API ------------
+// Clips
 app.get('/api/clips', (req, res) => {
   console.log("GET /api/clips");
 
@@ -217,7 +216,7 @@ app.get('/api/clips', (req, res) => {
   });
 });
 
-// ------------ Folder-style view ------------
+// Folder style visuals
 app.get('/clips-browser', (req, res) => {
   console.log("GET /clips-browser");
 
@@ -259,7 +258,7 @@ app.get('/clips-browser', (req, res) => {
   });
 });
 
-// ------------ START SERVER ------------
+// START SERVER
 server.listen(HTTP_PORT, '0.0.0.0', () => {
   console.log(`Web server running on port ${HTTP_PORT}`);
 });
