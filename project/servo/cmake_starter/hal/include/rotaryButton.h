@@ -3,13 +3,14 @@
 
 #include <stdbool.h>
 
-// Initialize the rotary-encoder pushbutton (SW pin only)
+//initialize rotary encoder pushbutton 
 void RotaryButton_init(void);
 
-// Returns true ONLY on a "press" event (active-low falling edge)
+//returns true if button is pressed
 bool RotaryButton_wasPressed(void);
 
-// Release GPIO resources
+//rotary button cleanup
 void RotaryButton_cleanup(void);
 
 #endif
+
