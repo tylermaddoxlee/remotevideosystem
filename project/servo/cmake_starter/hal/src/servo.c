@@ -3,12 +3,14 @@
 #include <fcntl.h>
 #include "hal/servo.h"
 
+// PWM servo settings, max = 2ms, min = 1ms
 #define SERVO_MIN_US 1000
 #define SERVO_MAX_US 2000
-#define SERVO_PERIOD_US 20000
+#define SERVO_PERIOD_US 20000 // 20 ms period
 
 static const char* pwm_path = "/dev/hat/pwm/GPIO12";
 
+// Write PWM attribute function
 static void pwm_write(const char* name, int value) {
     char path[128];
     snprintf(path, sizeof(path), "%s/%s", pwm_path, name);
@@ -22,9 +24,10 @@ static void pwm_write(const char* name, int value) {
     }
 }
 
+// Servo PWM initialization
 int servo_init() {
     pwm_write("period", SERVO_PERIOD_US * 1000);
-    pwm_write("duty_cycle", 1500000); // start in middle
+    pwm_write("duty_cycle", 1500000); // start in middle (90 degrees)
     pwm_write("enable", 1);
     return 0;
 }
@@ -38,6 +41,7 @@ void servo_set_angle(int angle) {
     pwm_write("duty_cycle", pulse_us * 1000);
 }
 
+// servo disable function
 void servo_disable() {
     pwm_write("enable", 0);
 }

@@ -5,19 +5,19 @@
 #include <stdbool.h>
 
 #define ROTARY_BUTTON_CHIP "/dev/gpiochip2"
-#define ROTARY_BUTTON_LINE 9   // GPIO21
+#define ROTARY_BUTTON_LINE 9 // GPIO21
 
 static struct gpiod_chip *chip = NULL;
 static struct gpiod_line_request *req = NULL;
 
 static int lastState = 1;
 static bool initialized = false;
-
+// sets gpio pin input as button input
 void RotaryButton_init(void)
 {
     chip = gpiod_chip_open(ROTARY_BUTTON_CHIP);
     if (!chip) { perror("gpiod_chip_open"); return; }
-
+    //if cant open, stop function
     unsigned int offset = ROTARY_BUTTON_LINE;
 
     struct gpiod_line_settings *s = gpiod_line_settings_new();
@@ -35,7 +35,7 @@ void RotaryButton_init(void)
     initialized = true;
     printf("Doorbell button ready.\n");
 }
-
+//conditions if button is pressed
 bool RotaryButton_wasPressed(void)
 {
     if (!initialized) return false;
@@ -48,10 +48,11 @@ bool RotaryButton_wasPressed(void)
 
     return pressed;
 }
-
+//rotary button cleanup
 void RotaryButton_cleanup(void)
 {
     if (req) gpiod_line_request_release(req);
     if (chip) gpiod_chip_close(chip);
     initialized = false;
+
 }

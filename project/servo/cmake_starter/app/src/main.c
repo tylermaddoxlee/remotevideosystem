@@ -94,7 +94,7 @@ int main(void) {
 
     printf("Initializing Joystick + Servo + UDP Control...\n");
 
-    //Joystick SPI
+    // Joystick SPI
     int js_fd = js_open(SPI_DEV);
     if (js_fd < 0) {
         printf("ERROR: Cannot open SPI device %s\n", SPI_DEV);
@@ -106,7 +106,7 @@ int main(void) {
         return 1;
     }
 
-    //servo
+    // servo
     if (servo_init() < 0) {
         printf("ERROR: servo_init() failed.\n");
         close(js_fd);
@@ -116,10 +116,10 @@ int main(void) {
     current_angle = 90;
     servo_set_angle(current_angle);
 
-    //ROTARY BUTTON
+    // ROTARY BUTTON
     RotaryButton_init();
 
-    //UDP
+    // UDP
     if (udp_init() < 0) {
         printf("ERROR: UDP init failed\n");
         servo_disable();
@@ -129,10 +129,10 @@ int main(void) {
 
     printf("System ready. Joystick, UDP, and Doorbell active.\n");
 
-    //Main loop
+    // Main loop
     while (running) {
 
-        //  PLAY DOORBELL SOUND
+        // PLAY DOORBELL SOUND
         if (RotaryButton_wasPressed()) {
             printf("Doorbell pressed!\n");
 

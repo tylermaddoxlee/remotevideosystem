@@ -10,16 +10,12 @@
 #define CENTER   2048
 #define DEADZONE 500
 
-//--------------------------------------------------
-// SPI OPEN
-//--------------------------------------------------
+// SPI open function
 int js_open(const char* dev) {
     return open(dev, O_RDWR);
 }
 
-//--------------------------------------------------
-// SPI CONFIGURE
-//--------------------------------------------------
+// SPI configure function
 int js_configure(int fd, unsigned mode, unsigned bits, unsigned speed) {
     if (ioctl(fd, SPI_IOC_WR_MODE, &mode) < 0) return -1;
     if (ioctl(fd, SPI_IOC_WR_BITS_PER_WORD, &bits) < 0) return -1;
@@ -27,9 +23,7 @@ int js_configure(int fd, unsigned mode, unsigned bits, unsigned speed) {
     return 0;
 }
 
-//--------------------------------------------------
-// READ MCP3208 CHANNEL
-//--------------------------------------------------
+// Read ADC channel function
 int js_read_channel(int fd, int ch, unsigned speed_hz) {
     if (ch < 0 || ch > 7) return -1;
 
@@ -55,9 +49,7 @@ int js_read_channel(int fd, int ch, unsigned speed_hz) {
     return value;
 }
 
-//--------------------------------------------------
-// DIRECTION DETECTION
-//--------------------------------------------------
+// Direction detection function
 js_dir_t js_direction(int x, int y) {
     if (x < (CENTER - DEADZONE)) return JS_LEFT;
     if (x > (CENTER + DEADZONE)) return JS_RIGHT;
@@ -68,9 +60,7 @@ js_dir_t js_direction(int x, int y) {
     return JS_CENTER;
 }
 
-//--------------------------------------------------
-// READ X/Y AND RETURN DIRECTION
-//--------------------------------------------------
+// Read X and Y value function, returns directions
 js_dir_t js_read_dir(int fd, unsigned speed_hz, int chX, int chY) {
     int x = js_read_channel(fd, chX, speed_hz);
     int y = js_read_channel(fd, chY, speed_hz);
@@ -80,9 +70,7 @@ js_dir_t js_read_dir(int fd, unsigned speed_hz, int chX, int chY) {
     return js_direction(x, y);
 }
 
-//--------------------------------------------------
-// WAIT FOR CENTER
-//--------------------------------------------------
+// wait for joystick center function
 void js_wait_center(int fd, unsigned speed_hz, int chX, int chY) {
     while (1) {
         js_dir_t d = js_read_dir(fd, speed_hz, chX, chY);
