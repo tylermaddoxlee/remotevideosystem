@@ -15,14 +15,14 @@
 using namespace cv;
 using namespace std;
 
-// ---- CONFIG ----
+// config
 // IP/port of your Debian VM / Node server (where server.js is running)
 static const char* MOTION_SERVER_IP   = "192.168.7.1";
-static const int   MOTION_SERVER_PORT = 12346;   // motion UDP port
+static const int   MOTION_SERVER_PORT = 12346; // motion UDP port
 
-// Beagle local TCP MJPEG stream (from gst-launch tcpserversink)
-static const char* MJPEG_HOST = "127.0.0.1";     // Beagle itself
-static const int   MJPEG_PORT = 8554;           // must match tcpserversink port
+// Beagle local TCP MJPEG stream 
+static const char* MJPEG_HOST = "127.0.0.1"; // Beagle itself
+static const int   MJPEG_PORT = 8554; // must match tcpserversink port
 
 // Where to save clips (must be visible to both Beagle & Debian VM via NFS)
 static const std::string CLIPS_DIR = "/mnt/remote/project/beagley-server/clips";
@@ -70,7 +70,7 @@ int main(int argc, char** argv)
          << " x "            << cam.get(CAP_PROP_FRAME_HEIGHT) << endl;
     cout << "Reported FPS   : " << cam.get(CAP_PROP_FPS) << endl;
 
-    // ----- Setup UDP socket for motion events -----
+    // UDP
     int motionSock = socket(AF_INET, SOCK_DGRAM, 0);
     if (motionSock < 0) {
         perror("socket");
@@ -94,7 +94,7 @@ int main(int argc, char** argv)
     Mat frame, gray, firstFrame, frameDelta, thresh;
     vector<vector<Point>> contours;
 
-    // --- Warm-up: grab a few frames so auto-exposure settles ---
+    // Warm up by grabbing few frames to teach camera 
     bool gotWarmup = false;
     for (int i = 0; i < 40; ++i) {
         cam >> frame;
@@ -112,7 +112,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    // --- Capture initial background frame ---
+    // Capture background frame
     cam >> frame;
     if (frame.empty()) {
         cerr << "Failed to grab initial frame from stream\n";
@@ -126,11 +126,11 @@ int main(int argc, char** argv)
     const int framePixels = frame.cols * frame.rows;
 
     // === TUNING KNOBS (easy to adjust) ===
-    const double MIN_AREA_RATIO = 0.002;   // 0.2% of frame
+    const double MIN_AREA_RATIO = 0.002;   // Min area for detection
     const int MIN_MOTION_AREA   = static_cast<int>(framePixels * MIN_AREA_RATIO);
 
     const double HIGH_RATIO = 0.01;   // 1% of frame => definitely motion
-    const double LOW_RATIO  = 0.003;  // 0.3% of frame => quiet enough
+    const double LOW_RATIO  = 0.003;  // few of frame => quiet enough to stabilize
 
     const double HIGH_AREA = framePixels * HIGH_RATIO;
     const double LOW_AREA  = framePixels * LOW_RATIO;
@@ -152,7 +152,7 @@ int main(int argc, char** argv)
     const auto MOTION_COOLDOWN       = chrono::milliseconds(300); // ≥ ~3/sec
     const auto MAX_CONTINUOUS_MOTION = chrono::seconds(8);        // after this, assume new background
 
-    // --- Recording state ---
+    // Recording 
     VideoWriter writer;
     bool recording = false;
     std::string currentClipName;
@@ -234,7 +234,7 @@ int main(int argc, char** argv)
         auto now = chrono::steady_clock::now();
 
         if (state == IDLE) {
-            // --- IDLE ---
+            // IDLE
             if (totalMotionArea > HIGH_AREA) {
                 // Enter motion state
                 state = MOTION;
@@ -250,17 +250,16 @@ int main(int argc, char** argv)
                     lastMotionSend = now;
                 }
 
-                // While moving, adapt background slowly
+                // Slowly adapt
                 addWeighted(gray, 0.02, firstFrame, 0.98, 0.0, firstFrame);
 
             } else {
-                // Still idle: adapt background moderately
+                // Idle
                 addWeighted(gray, 0.08, firstFrame, 0.92, 0.0, firstFrame);
             }
 
         } else {
-            // --- MOTION ---
-            // Long continuous motion => treat current frame as new background
+            // Motion
             if (now - motionStartTime > MAX_CONTINUOUS_MOTION) {
                 cout << "[SCENE] Long motion, treating current frame as new background, back to IDLE\n";
                 gray.copyTo(firstFrame);
@@ -294,7 +293,7 @@ int main(int argc, char** argv)
                 }
 
             } else {
-                // small wobbles
+                // small changes
                 framesBelowLow = 0;
                 addWeighted(gray, 0.06, firstFrame, 0.94, 0.0, firstFrame);
             }
