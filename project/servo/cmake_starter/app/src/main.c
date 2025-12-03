@@ -15,14 +15,14 @@
 #define SPI_DEV "/dev/spidev0.0"  // MCP3208 SPI device
 #define SPI_MODE 0
 #define SPI_BITS 8
-#define SPI_SPEED 1000000         // 1 MHz
+#define SPI_SPEED 1000000 // 1 MHz
 
 #define JOY_CH_X 1
 #define JOY_CH_Y 0
 
 #define UDP_PORT 12345
 
-// 🔔 Doorbell sound file
+// Doorbell sound file
 #define DOORBELL_SOUND_WAV "/mnt/remote/doorbell.wav"
 
 static int running = 1;
@@ -85,7 +85,6 @@ void udp_check() {
             printf("UDP RIGHT → angle = %d\n", current_angle);
 
         } else if (strcmp(buf, "STOP") == 0) {
-            // Do nothing
         }
     }
 }
@@ -95,9 +94,7 @@ int main(void) {
 
     printf("Initializing Joystick + Servo + UDP Control...\n");
 
-    //------------------------------------------------------------------
-    // Init joystick SPI
-    //------------------------------------------------------------------
+    //Joystick SPI
     int js_fd = js_open(SPI_DEV);
     if (js_fd < 0) {
         printf("ERROR: Cannot open SPI device %s\n", SPI_DEV);
@@ -109,9 +106,7 @@ int main(void) {
         return 1;
     }
 
-    //------------------------------------------------------------------
-    // Init servo
-    //------------------------------------------------------------------
+    //servo
     if (servo_init() < 0) {
         printf("ERROR: servo_init() failed.\n");
         close(js_fd);
@@ -121,14 +116,10 @@ int main(void) {
     current_angle = 90;
     servo_set_angle(current_angle);
 
-    //------------------------------------------------------------------
-    // Init rotary button
-    //------------------------------------------------------------------
+    //ROTARY BUTTON
     RotaryButton_init();
 
-    //------------------------------------------------------------------
-    // Init UDP
-    //------------------------------------------------------------------
+    //UDP
     if (udp_init() < 0) {
         printf("ERROR: UDP init failed\n");
         servo_disable();
@@ -138,14 +129,12 @@ int main(void) {
 
     printf("System ready. Joystick, UDP, and Doorbell active.\n");
 
-    //------------------------------------------------------------------
-    // MAIN LOOP
-    //------------------------------------------------------------------
+    //Main loop
     while (running) {
 
-        // 🔔 PLAY DOORBELL SOUND
+        //  PLAY DOORBELL SOUND
         if (RotaryButton_wasPressed()) {
-            printf("🔔 Doorbell pressed!\n");
+            printf("Doorbell pressed!\n");
 
             char cmd[256];
             snprintf(cmd, sizeof(cmd), "aplay %s &", DOORBELL_SOUND_WAV);
@@ -171,9 +160,7 @@ int main(void) {
         usleep(20000);
     }
 
-    //------------------------------------------------------------------
     // Cleanup
-    //------------------------------------------------------------------
     servo_disable();
     RotaryButton_cleanup();
     close(js_fd);
