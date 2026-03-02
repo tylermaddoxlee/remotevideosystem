@@ -11,7 +11,7 @@ Remote device control (servo motor, joystick input)
 Web-based video relay via WebSockets
 
 The system was developed in a four-person team and runs on Linux-based embedded platforms.
-
+![image alt]((https://github.com/tylermaddoxlee/remotevideosystem/blob/eb2d653717def80a179cffe70a0efb03398a8d35/project/remote.png)) 
 ## System Architecture:
 
 Camera → OpenCV Processing → UDP Stream → WebSocket Relay → Browser Client
